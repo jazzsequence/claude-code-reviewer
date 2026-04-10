@@ -27,44 +27,47 @@ echo "=================================="
 echo ""
 
 # ── TTY setup ─────────────────────────────────────────────────────────────────
-# Open a dedicated fd pointing at the real terminal so read blocks for user
-# input even when stdin is a pipe (curl | bash). /dev/tty is the controlling
-# terminal of the process group and is available in curl-pipe context.
-# Falls back to defaults silently when no terminal exists (CI, etc.).
+# Always prefer /dev/tty so prompts block for real input even in curl | bash.
+# /dev/tty is the controlling terminal of the process group; it works even
+# when stdin is a pipe. Falls back to defaults (with a notice) only when
+# no terminal is reachable at all (CI, containerized env, etc.).
 if [ "${REVIEWER_SKIP_PROMPTS:-0}" != "1" ]; then
-  if [ -t 0 ]; then
-    _TTY_FD=0
-  elif exec 3</dev/tty 2>/dev/null; then
+  if exec 3</dev/tty 2>/dev/null; then
     _TTY_FD=3
     # shellcheck disable=SC2064
     trap "exec 3>&-" EXIT
+  elif [ -t 0 ]; then
+    _TTY_FD=0
   else
     REVIEWER_SKIP_PROMPTS=1
+    echo -e "${YELLOW}Note: no interactive terminal found — using defaults.${NC}"
+    echo -e "${YELLOW}      Edit .reviewer-config.sh after install to customise.${NC}"
+    echo ""
   fi
 fi
 
 # ── Helper ────────────────────────────────────────────────────────────────────
 ask() {
   local prompt="$1" default="$2" var="$3" answer
-  echo -ne "${BLUE}?${NC} $prompt "
-  [ -n "$default" ] && echo -ne "${YELLOW}[$default]${NC} "
   if [ "${REVIEWER_SKIP_PROMPTS:-0}" = "1" ]; then
-    echo "$default"
+    echo -e "${BLUE}?${NC} $prompt ${YELLOW}[$default]${NC} $default"
     printf -v "$var" '%s' "$default"
     return
   fi
+  echo -ne "${BLUE}?${NC} $prompt "
+  [ -n "$default" ] && echo -ne "${YELLOW}[$default]${NC} "
   read -r -u "$_TTY_FD" answer
   printf -v "$var" '%s' "${answer:-$default}"
 }
 
 ask_yn() {
   local prompt="$1" default="$2" var="$3" answer
-  echo -ne "${BLUE}?${NC} $prompt ${YELLOW}[${default}]${NC} "
   if [ "${REVIEWER_SKIP_PROMPTS:-0}" = "1" ]; then
-    echo "$default"
+    echo -e "${BLUE}?${NC} $prompt ${YELLOW}[$default]${NC} $default"
     printf -v "$var" '%s' "$default"
     return
   fi
+  echo -ne "${BLUE}?${NC} $prompt ${YELLOW}[${default}]${NC} "
   read -r -u "$_TTY_FD" answer
   answer="${answer:-$default}"
   printf -v "$var" '%s' "$answer"
