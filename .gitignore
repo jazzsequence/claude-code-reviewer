@@ -2,7 +2,7 @@
 reviewer-approved
 
 # Claude Code local settings
-.claude/settings.json
+.claude/
 
 # OS
 .DS_Store
