@@ -231,11 +231,16 @@ CLAUDE_MD="$REPO_ROOT/CLAUDE.md"
 if [ -f "$CLAUDE_MD" ] && grep -q "Pre-Commit Reviewer Workflow" "$CLAUDE_MD" 2>/dev/null; then
   echo -e "  ${YELLOW}⚠️  CLAUDE.md already has reviewer workflow block — skipping${NC}"
 else
-  # Extract content between ```markdown and closing ``` fences
-  echo "" >> "$CLAUDE_MD"
-  awk '/^```markdown$/{f=1; next} f && /^```$/{f=0; next} f{print}' \
-    "$TEMPLATES_SRC/claude-md-block.md" >> "$CLAUDE_MD"
-  echo -e "  ${GREEN}✅ Reviewer workflow block appended to CLAUDE.md${NC}"
+  # Extract content between ```markdown and closing ``` fences, then prepend
+  _block=$(awk '/^```markdown$/{f=1; next} f && /^```$/{f=0; next} f{print}' \
+    "$TEMPLATES_SRC/claude-md-block.md")
+  if [ -f "$CLAUDE_MD" ]; then
+    _existing=$(cat "$CLAUDE_MD")
+    printf '%s\n\n%s\n' "$_block" "$_existing" > "$CLAUDE_MD"
+  else
+    printf '%s\n' "$_block" > "$CLAUDE_MD"
+  fi
+  echo -e "  ${GREEN}✅ Reviewer workflow block prepended to CLAUDE.md${NC}"
 fi
 
 # ── AGENTS.md ─────────────────────────────────────────────────────────────────
@@ -243,11 +248,16 @@ AGENTS_MD="$REPO_ROOT/AGENTS.md"
 if [ -f "$AGENTS_MD" ] && grep -q "Reviewer Agent Instructions" "$AGENTS_MD" 2>/dev/null; then
   echo -e "  ${YELLOW}⚠️  AGENTS.md already has reviewer agent — skipping${NC}"
 else
-  # Skip the human-facing preamble (before and including the first ---)
-  echo "" >> "$AGENTS_MD"
-  awk '/^---$/{if(!f){f=1; next}} f{print}' \
-    "$TEMPLATES_SRC/reviewer-agent.md" >> "$AGENTS_MD"
-  echo -e "  ${GREEN}✅ Reviewer agent prompt appended to AGENTS.md${NC}"
+  # Skip the human-facing preamble (before and including the first ---), then prepend
+  _block=$(awk '/^---$/{if(!f){f=1; next}} f{print}' \
+    "$TEMPLATES_SRC/reviewer-agent.md")
+  if [ -f "$AGENTS_MD" ]; then
+    _existing=$(cat "$AGENTS_MD")
+    printf '%s\n\n%s\n' "$_block" "$_existing" > "$AGENTS_MD"
+  else
+    printf '%s\n' "$_block" > "$AGENTS_MD"
+  fi
+  echo -e "  ${GREEN}✅ Reviewer agent prompt prepended to AGENTS.md${NC}"
 fi
 
 # ── Summary ───────────────────────────────────────────────────────────────────
