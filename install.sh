@@ -35,7 +35,7 @@ ask() {
   fi
   echo -ne "${BLUE}?${NC} $prompt "
   [ -n "$default" ] && echo -ne "${YELLOW}[$default]${NC} "
-  read -r answer
+  read -r answer </dev/tty
   printf -v "$var" '%s' "${answer:-$default}"
 }
 
@@ -46,7 +46,7 @@ ask_yn() {
     return
   fi
   echo -ne "${BLUE}?${NC} $prompt ${YELLOW}[${default}]${NC} "
-  read -r answer
+  read -r answer </dev/tty
   answer="${answer:-$default}"
   printf -v "$var" '%s' "$answer"
 }
