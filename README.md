@@ -18,6 +18,7 @@ The reviewer agent runs your tests, checks code quality, then writes a timestamp
 - Git
 - Bash (macOS/Linux/WSL)
 - Node.js (for the PreToolUse hook handler)
+- `jq` _(optional — enables automatic `.claude/settings.json` merging when the file already exists)_
 
 No npm packages. No external services.
 
@@ -36,25 +37,18 @@ cd your-project
 bash ../claude-code-reviewer/install.sh
 ```
 
-The installer will ask for your test/lint/build commands and generate a `.reviewer-config.sh` for the project.
+The installer will ask for your test/lint/build commands, then set up everything automatically:
+
+- Generates `.reviewer-config.sh`
+- Installs the pre-commit hook
+- Installs the PreToolUse hook handler
+- Creates or merges `.claude/settings.json` (uses `jq` to merge if the file already exists)
+- Prepends the reviewer workflow block to `CLAUDE.md`
+- Prepends the reviewer agent prompt to `AGENTS.md`
 
 ## Post-install
 
-After running the installer, add two blocks to your project:
-
-**1. Add to `CLAUDE.md`** — tells the AI how the reviewer workflow operates:
-
-```
-cat templates/claude-md-block.md >> your-project/CLAUDE.md
-```
-
-**2. Add to `AGENTS.md`** — the reviewer agent's instructions:
-
-```
-cat templates/reviewer-agent.md >> your-project/AGENTS.md
-```
-
-Then test it:
+Test that the hook is blocking correctly:
 
 ```bash
 echo "test" >> README.md

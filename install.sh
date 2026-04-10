@@ -191,10 +191,10 @@ fi
 
 # ── .claude/settings.json ─────────────────────────────────────────────────────
 SETTINGS_FILE="$REPO_ROOT/.claude/settings.json"
-if [ ! -f "$SETTINGS_FILE" ]; then
-  mkdir -p "$REPO_ROOT/.claude"
-  cat > "$SETTINGS_FILE" <<'EOF'
-{
+mkdir -p "$REPO_ROOT/.claude"
+
+# The settings block we need present in the file
+_SETTINGS_BLOCK='{
   "permissions": {
     "allow": [
       "Bash(git commit*)",
@@ -218,11 +218,29 @@ if [ ! -f "$SETTINGS_FILE" ]; then
       }
     ]
   }
-}
-EOF
+}'
+
+if [ ! -f "$SETTINGS_FILE" ]; then
+  echo "$_SETTINGS_BLOCK" > "$SETTINGS_FILE"
   echo -e "  ${GREEN}✅ .claude/settings.json created${NC}"
+elif command -v jq >/dev/null 2>&1; then
+  # Merge into existing file:
+  #   permissions.allow → union (no duplicates)
+  #   hooks.PreToolUse  → append our entry only if our command isn't already registered
+  jq --argjson new "$_SETTINGS_BLOCK" '
+    .permissions.allow = ((.permissions.allow // []) + $new.permissions.allow | unique) |
+    if (.hooks.PreToolUse // []) | any(
+      .matcher == "Bash" and
+      (.hooks // [] | any(.command == "node .claude/helpers/hook-handler.cjs pre-bash"))
+    )
+    then .
+    else .hooks.PreToolUse = ((.hooks.PreToolUse // []) + $new.hooks.PreToolUse)
+    end
+  ' "$SETTINGS_FILE" > "$SETTINGS_FILE.tmp" && mv "$SETTINGS_FILE.tmp" "$SETTINGS_FILE"
+  echo -e "  ${GREEN}✅ .claude/settings.json merged${NC}"
 else
-  echo -e "  ${YELLOW}⚠️  .claude/settings.json already exists — merge manually:${NC}"
+  echo -e "  ${YELLOW}⚠️  .claude/settings.json already exists and jq is not available.${NC}"
+  echo "     Install jq for automatic merging, or merge manually:"
   echo "     See templates/settings-addition.json for what to add"
 fi
 
