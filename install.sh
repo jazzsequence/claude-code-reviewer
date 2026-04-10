@@ -30,25 +30,25 @@ echo ""
 ask() {
   local prompt="$1" default="$2" var="$3"
   if [ "${REVIEWER_SKIP_PROMPTS:-0}" = "1" ]; then
-    eval "$var=\"$default\""
+    printf -v "$var" '%s' "$default"
     return
   fi
   echo -ne "${BLUE}?${NC} $prompt "
   [ -n "$default" ] && echo -ne "${YELLOW}[$default]${NC} "
   read -r answer
-  eval "$var=\"${answer:-$default}\""
+  printf -v "$var" '%s' "${answer:-$default}"
 }
 
 ask_yn() {
   local prompt="$1" default="$2" var="$3"
   if [ "${REVIEWER_SKIP_PROMPTS:-0}" = "1" ]; then
-    eval "$var=\"$default\""
+    printf -v "$var" '%s' "$default"
     return
   fi
   echo -ne "${BLUE}?${NC} $prompt ${YELLOW}[${default}]${NC} "
   read -r answer
   answer="${answer:-$default}"
-  eval "$var=\"$answer\""
+  printf -v "$var" '%s' "$answer"
 }
 
 # ── Gather config ─────────────────────────────────────────────────────────────
