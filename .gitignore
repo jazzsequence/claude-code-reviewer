@@ -1,0 +1,9 @@
+# Never commit the approval flag if this repo is used as a test project
+reviewer-approved
+
+# Claude Code local settings
+.claude/settings.json
+
+# OS
+.DS_Store
+Thumbs.db

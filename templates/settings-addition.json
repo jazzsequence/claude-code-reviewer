@@ -1,0 +1,28 @@
+{
+  "_comment": "Merge this into your project's .claude/settings.json",
+  "_comment2": "The Write(*) permission is required for the reviewer to write the approval flag without a manual prompt",
+
+  "permissions": {
+    "allow": [
+      "Bash(git commit*)",
+      "Bash(git add*)",
+      "Bash(date*)",
+      "Write(*)",
+      "Agent(subagent_type=reviewer)"
+    ]
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node .claude/helpers/hook-handler.cjs pre-bash",
+            "timeout": 5000
+          }
+        ]
+      }
+    ]
+  }
+}
