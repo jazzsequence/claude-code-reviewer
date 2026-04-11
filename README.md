@@ -1,6 +1,6 @@
 # claude-code-reviewer
 
-A portable reviewer workflow for [Claude Code](https://claude.ai/code) that enforces mandatory AI code review before every git commit.
+An adversarial reviewer workflow for [Claude Code](https://claude.ai/code) that enforces mandatory AI review.
 
 ## How it works
 
