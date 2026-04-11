@@ -132,6 +132,7 @@ else
   curl -sSL "$BASE_URL/templates/reviewer-config.sh"    -o "$TMP_DIR/reviewer-config.sh"
   curl -sSL "$BASE_URL/templates/claude-md-block.md"    -o "$TMP_DIR/claude-md-block.md"
   curl -sSL "$BASE_URL/templates/reviewer-agent.md"     -o "$TMP_DIR/reviewer-agent.md"
+  curl -sSL "$BASE_URL/templates/reviewer.md"           -o "$TMP_DIR/reviewer.md"
 
   HOOKS_SRC="$TMP_DIR"
   HELPERS_SRC="$TMP_DIR"
@@ -279,6 +280,17 @@ else
     printf '%s\n' "$_block" > "$AGENTS_MD"
   fi
   echo -e "  ${GREEN}✅ Reviewer agent prompt prepended to AGENTS.md${NC}"
+fi
+
+# ── .claude/agents/reviewer.md ────────────────────────────────────────────────
+# The actual custom agent definition — required for Agent(subagent_type=reviewer)
+AGENT_FILE="$REPO_ROOT/.claude/agents/reviewer.md"
+if [ -f "$AGENT_FILE" ]; then
+  echo -e "  ${YELLOW}⚠️  .claude/agents/reviewer.md already exists — skipping${NC}"
+else
+  mkdir -p "$REPO_ROOT/.claude/agents"
+  cp "$TEMPLATES_SRC/reviewer.md" "$AGENT_FILE"
+  echo -e "  ${GREEN}✅ .claude/agents/reviewer.md installed${NC}"
 fi
 
 # ── Summary ───────────────────────────────────────────────────────────────────
