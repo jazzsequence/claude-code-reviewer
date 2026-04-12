@@ -57,3 +57,38 @@ The reviewer agent writes the approval flag; the main agent does not. This separ
 ## What `USER_COMMIT=1` bypasses
 
 All reviewer-related checks, but **not** the secrets check (which never has a bypass). It's intended only for human-authored commits where the developer is taking personal responsibility for the change.
+
+---
+
+## How the manifest-based update system works
+
+`install.sh` is safe to re-run. It tracks installed files in `.reviewer-manifest`
+(a plain-text file at the project root, one `relative/path:sha256hash` entry per line)
+and uses three-way comparison to decide what to do on each re-run:
+
+```
+current local hash  vs  manifest hash  → "did the user touch this file?"
+current local hash  vs  new upstream hash  → "is this file already at the latest version?"
+```
+
+**Fully-managed files** (`.githooks/pre-commit`, `hook-handler.cjs`, `.claude/agents/reviewer.md`):
+
+| Current == manifest | Current == upstream | Action |
+|---------------------|---------------------|--------|
+| ✅ yes | ✅ yes | Already up to date — no action |
+| ✅ yes | ❌ no  | No local changes, upstream changed → **update automatically** |
+| ❌ no  | ✅ yes | User changed it to match upstream exactly → record in manifest |
+| ❌ no  | ❌ no  | **User modified** → skip, show upstream diff for manual merge |
+
+The manifest stores hashes of what was installed *locally* — not what is in the
+upstream repo. When upstream ships a new version of a file, the new file's hash
+differs from both the manifest and the current file (assuming no local edits),
+so the "current == manifest, current != upstream" row applies and the file is
+updated automatically.
+
+**User-editable files** (`.reviewer-config.sh`, `docs/REVIEWER_CHECKLIST.md`):
+
+These are never overwritten. On re-run, install.sh generates the new template
+version (with current config values substituted) and diffs it against what's
+on disk. If they differ, it prints the diff so you can manually merge any
+upstream improvements you want to keep.
