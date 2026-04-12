@@ -68,8 +68,8 @@ REVIEWER_LINT_CMD="npm run lint"        # linter
 REVIEWER_BUILD_CMD="npm run build"      # build
 REVIEWER_E2E_CMD=""                     # E2E (empty = skip)
 
-REVIEWER_MAX_FILES=5          # max staged files per AI commit
-REVIEWER_MAX_INSERTIONS=500   # max inserted lines per AI commit
+REVIEWER_MAX_FILES=10         # max staged files per AI commit
+REVIEWER_MAX_INSERTIONS=1000  # max inserted lines per AI commit
 REVIEWER_APPROVAL_TIMEOUT=300 # seconds before approval expires
 ```
 

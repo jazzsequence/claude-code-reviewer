@@ -88,8 +88,8 @@ else
   E2E_CMD=""
 fi
 
-ask "Max staged files per AI commit:" "5" MAX_FILES
-ask "Max inserted lines per AI commit:" "500" MAX_INSERTIONS
+ask "Max staged files per AI commit:" "10" MAX_FILES
+ask "Max inserted lines per AI commit:" "1000" MAX_INSERTIONS
 ask "Approval timeout (seconds):" "300" TIMEOUT
 
 echo ""
