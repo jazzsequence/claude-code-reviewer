@@ -253,9 +253,14 @@ CLAUDE_MD="$REPO_ROOT/CLAUDE.md"
 if [ -f "$CLAUDE_MD" ] && grep -q "Pre-Commit Reviewer Workflow" "$CLAUDE_MD" 2>/dev/null; then
   echo -e "  ${YELLOW}⚠️  CLAUDE.md already has reviewer workflow block — skipping${NC}"
 else
-  # Extract content between ```markdown and closing ``` fences, then prepend
-  _block=$(awk '/^```markdown$/{f=1; next} f && /^```$/{f=0; next} f{print}' \
-    "$TEMPLATES_SRC/claude-md-block.md")
+  # Extract content between the outer ```markdown and closing ``` fences.
+  # Uses line numbers so inner fenced code blocks (```bash ... ```) are preserved
+  # intact — the old awk approach stopped at the first bare ``` it encountered,
+  # which was the closing fence of an inner block, leaving the extracted content
+  # with an unclosed code fence.
+  _fence_line=$(grep -n '^```markdown$' "$TEMPLATES_SRC/claude-md-block.md" | head -1 | cut -d: -f1)
+  _total_lines=$(wc -l < "$TEMPLATES_SRC/claude-md-block.md" | tr -d ' ')
+  _block=$(sed -n "$((_fence_line+1)),$((_total_lines-1))p" "$TEMPLATES_SRC/claude-md-block.md")
   if [ -f "$CLAUDE_MD" ]; then
     _existing=$(cat "$CLAUDE_MD")
     printf '%s\n\n%s\n' "$_block" "$_existing" > "$CLAUDE_MD"
