@@ -114,7 +114,8 @@ else
   # Unit tests
   if [ -n "$REVIEWER_TEST_CMD" ]; then
     echo "   Running unit tests..."
-    if ! eval "$REVIEWER_TEST_CMD" 2>&1 | tail -6; then
+    eval "$REVIEWER_TEST_CMD" 2>&1 | tail -6
+    if [ "${PIPESTATUS[0]}" -ne 0 ]; then
       echo -e "${RED}❌ BLOCKED: Unit tests failed${NC}"
       exit 1
     fi
@@ -124,7 +125,8 @@ else
   # Linter
   if [ -n "$REVIEWER_LINT_CMD" ]; then
     echo "   Running linter..."
-    if ! eval "$REVIEWER_LINT_CMD" 2>&1 | tail -3; then
+    eval "$REVIEWER_LINT_CMD" 2>&1 | tail -3
+    if [ "${PIPESTATUS[0]}" -ne 0 ]; then
       echo -e "${RED}❌ BLOCKED: Linter failed${NC}"
       exit 1
     fi
