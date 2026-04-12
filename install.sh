@@ -127,12 +127,13 @@ else
   TMP_DIR=$(mktemp -d)
   BASE_URL="${REVIEWER_BASE_URL:-https://raw.githubusercontent.com/jazzsequence/claude-code-reviewer/main}"
 
-  curl -sSL "$BASE_URL/hooks/pre-commit"                -o "$TMP_DIR/pre-commit"
-  curl -sSL "$BASE_URL/helpers/hook-handler.cjs"        -o "$TMP_DIR/hook-handler.cjs"
-  curl -sSL "$BASE_URL/templates/reviewer-config.sh"    -o "$TMP_DIR/reviewer-config.sh"
-  curl -sSL "$BASE_URL/templates/claude-md-block.md"    -o "$TMP_DIR/claude-md-block.md"
-  curl -sSL "$BASE_URL/templates/reviewer-agent.md"     -o "$TMP_DIR/reviewer-agent.md"
-  curl -sSL "$BASE_URL/templates/reviewer.md"           -o "$TMP_DIR/reviewer.md"
+  curl -sSL "$BASE_URL/hooks/pre-commit"                    -o "$TMP_DIR/pre-commit"
+  curl -sSL "$BASE_URL/helpers/hook-handler.cjs"            -o "$TMP_DIR/hook-handler.cjs"
+  curl -sSL "$BASE_URL/templates/reviewer-config.sh"        -o "$TMP_DIR/reviewer-config.sh"
+  curl -sSL "$BASE_URL/templates/claude-md-block.md"        -o "$TMP_DIR/claude-md-block.md"
+  curl -sSL "$BASE_URL/templates/reviewer-agent.md"         -o "$TMP_DIR/reviewer-agent.md"
+  curl -sSL "$BASE_URL/templates/reviewer.md"               -o "$TMP_DIR/reviewer.md"
+  curl -sSL "$BASE_URL/templates/REVIEWER_CHECKLIST.md"     -o "$TMP_DIR/REVIEWER_CHECKLIST.md"
 
   HOOKS_SRC="$TMP_DIR"
   HELPERS_SRC="$TMP_DIR"
@@ -284,13 +285,57 @@ fi
 
 # ── .claude/agents/reviewer.md ────────────────────────────────────────────────
 # The actual custom agent definition — required for Agent(subagent_type=reviewer)
+# {{PROJECT_ROOT}} is substituted with the real absolute path so the reviewer
+# always writes reviewer-approved to a known location without triggering a
+# manual approval prompt from Claude Code.
 AGENT_FILE="$REPO_ROOT/.claude/agents/reviewer.md"
 if [ -f "$AGENT_FILE" ]; then
   echo -e "  ${YELLOW}⚠️  .claude/agents/reviewer.md already exists — skipping${NC}"
 else
   mkdir -p "$REPO_ROOT/.claude/agents"
-  cp "$TEMPLATES_SRC/reviewer.md" "$AGENT_FILE"
+  sed "s|{{PROJECT_ROOT}}|$REPO_ROOT|g" "$TEMPLATES_SRC/reviewer.md" > "$AGENT_FILE"
   echo -e "  ${GREEN}✅ .claude/agents/reviewer.md installed${NC}"
+fi
+
+# ── docs/REVIEWER_CHECKLIST.md ────────────────────────────────────────────────
+# Generated from the template with actual commands and project root substituted.
+CHECKLIST_FILE="$REPO_ROOT/docs/REVIEWER_CHECKLIST.md"
+if [ -f "$CHECKLIST_FILE" ]; then
+  echo -e "  ${YELLOW}⚠️  docs/REVIEWER_CHECKLIST.md already exists — skipping${NC}"
+else
+  mkdir -p "$REPO_ROOT/docs"
+
+  # Build the E2E item and file-org section based on config
+  if [ -n "$E2E_CMD" ]; then
+    _E2E_ITEM="4. E2E tests pass (\`$E2E_CMD\`) — run LAST; read Playwright summary directly"
+    _E2E_NOTE="After \`$E2E_CMD\`, read the Playwright summary line — not the hook output."
+  else
+    _E2E_ITEM="4. ⏭️ E2E: not configured for this project"
+    _E2E_NOTE=""
+  fi
+
+  sed \
+    -e "s|{{TEST_CMD}}|$TEST_CMD|g" \
+    -e "s|{{LINT_CMD}}|$LINT_CMD|g" \
+    -e "s|{{BUILD_CMD}}|$BUILD_CMD|g" \
+    -e "s|{{E2E_CMD}}|${E2E_CMD:-<not configured>}|g" \
+    -e "s|{{E2E_ITEM}}|$_E2E_ITEM|g" \
+    -e "s|{{PROJECT_ROOT}}|$REPO_ROOT|g" \
+    -e "s|{{FILE_ORG_ITEMS}}|5. No stray files created in repo root (config files are the exception)|g" \
+    -e "s|{{CODE_QUALITY_NUM}}|6|g" \
+    -e "s|{{CODE_QUALITY_NUM_PLUS1}}|7|g" \
+    -e "s|{{SECURITY_NUM}}|8|g" \
+    -e "s|{{SECURITY_NUM_PLUS1}}|9|g" \
+    -e "s|{{GIT_NUM}}|10|g" \
+    -e "s|{{GIT_NUM_PLUS1}}|11|g" \
+    -e "s|{{GIT_NUM_PLUS2}}|12|g" \
+    -e "s|{{TDD_NUM}}|13|g" \
+    -e "s|{{TDD_NUM_PLUS1}}|14|g" \
+    -e "s|{{DEP_NUM}}|15|g" \
+    -e "s|{{REVIEWER_APPROVAL_FILE}}|$REPO_ROOT/reviewer-approved|g" \
+    "$TEMPLATES_SRC/REVIEWER_CHECKLIST.md" > "$CHECKLIST_FILE"
+
+  echo -e "  ${GREEN}✅ docs/REVIEWER_CHECKLIST.md generated${NC}"
 fi
 
 # ── Summary ───────────────────────────────────────────────────────────────────
