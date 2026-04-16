@@ -37,7 +37,14 @@ These checks apply to every commit without exception.
 
 ### Tests & build
 
-Run each command as a separate Bash call. Never chain with `&&` or `;`.
+**Condition:** skip this entire section if all staged files match `\.(md|txt|rst|mdx)$`.
+Check with:
+```bash
+git diff --cached --name-only | grep -Ev '\.(md|txt|rst|mdx)$'
+```
+If that produces no output, output `⏭️ 1–N: text/docs-only changes — test suite skipped` and move to File organisation.
+
+Otherwise, run each command as a separate Bash call. Never chain with `&&` or `;`.
 Do NOT give a verdict until you have seen output from all commands.
 
 ```
