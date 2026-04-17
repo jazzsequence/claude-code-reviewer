@@ -15,7 +15,8 @@ REVIEWER_E2E_CMD=""                     # E2E tests (empty = skip)
                                         # example: "npm run test:e2e"
 
 # ── Commit size limits (AI commits only) ──────────────────────────────────────
-REVIEWER_MAX_FILES=5          # max staged files (excluding lock files)
+REVIEWER_MAX_FILES=5          # max changed files (add/modify/delete, excluding lock files)
+REVIEWER_MAX_RENAMES=20       # max renamed files (renames are lower-risk than edits)
 REVIEWER_MAX_INSERTIONS=500   # max lines inserted
 
 # ── Approval settings ─────────────────────────────────────────────────────────

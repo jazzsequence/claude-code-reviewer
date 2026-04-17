@@ -18,7 +18,8 @@ REVIEWER_TEST_CMD="npm test -- --run"
 REVIEWER_LINT_CMD="npm run lint"
 REVIEWER_BUILD_CMD="npm run build"
 REVIEWER_E2E_CMD=""                        # empty = skip E2E
-REVIEWER_MAX_FILES=5                       # max staged files (AI commits)
+REVIEWER_MAX_FILES=5                       # max changed files (add/modify/delete; AI commits)
+REVIEWER_MAX_RENAMES=20                    # max renamed files (AI commits)
 REVIEWER_MAX_INSERTIONS=500                # max inserted lines (AI commits)
 REVIEWER_APPROVAL_TIMEOUT=300             # seconds before approval expires
 REVIEWER_APPROVAL_FILE="reviewer-approved" # relative to project root
@@ -71,7 +72,12 @@ echo ""
 if [ "$USER_COMMIT" != "1" ]; then
   echo "2️⃣  Checking commit size..."
 
-  STAGED_FILE_COUNT=$(git diff --cached --name-only \
+  # Renames are lower-risk than edits — track them separately
+  STAGED_RENAMES=$(git diff --cached --diff-filter=R --name-only \
+    | grep -Ev "$REVIEWER_EXCLUDED_FILES" \
+    | wc -l | tr -d ' ')
+
+  STAGED_EDITS=$(git diff --cached --diff-filter=r --name-only \
     | grep -Ev "$REVIEWER_EXCLUDED_FILES" \
     | wc -l | tr -d ' ')
 
@@ -80,10 +86,17 @@ if [ "$USER_COMMIT" != "1" ]; then
       | sed 's/^/:/') 2>/dev/null \
     | tail -1 | grep -oE '[0-9]+ insertion' | grep -oE '[0-9]+' || echo 0)
 
-  if [ "$STAGED_FILE_COUNT" -gt "$REVIEWER_MAX_FILES" ]; then
-    echo -e "${RED}❌ BLOCKED: Commit too large — $STAGED_FILE_COUNT files staged (max $REVIEWER_MAX_FILES for AI commits)${NC}"
+  if [ "$STAGED_EDITS" -gt "$REVIEWER_MAX_FILES" ]; then
+    echo -e "${RED}❌ BLOCKED: Commit too large — $STAGED_EDITS files changed (max $REVIEWER_MAX_FILES for AI commits)${NC}"
     echo "   Split into smaller, atomic commits:"
-    git diff --cached --name-only | grep -Ev "$REVIEWER_EXCLUDED_FILES" | sed 's/^/     /'
+    git diff --cached --diff-filter=r --name-only | grep -Ev "$REVIEWER_EXCLUDED_FILES" | sed 's/^/     /'
+    exit 1
+  fi
+
+  if [ "$STAGED_RENAMES" -gt "$REVIEWER_MAX_RENAMES" ]; then
+    echo -e "${RED}❌ BLOCKED: Too many renames — $STAGED_RENAMES files renamed (max $REVIEWER_MAX_RENAMES for AI commits)${NC}"
+    echo "   Split into smaller, atomic commits:"
+    git diff --cached --diff-filter=R --name-only | sed 's/^/     /'
     exit 1
   fi
 
@@ -93,7 +106,7 @@ if [ "$USER_COMMIT" != "1" ]; then
     exit 1
   fi
 
-  echo -e "${GREEN}✅ Commit size OK ($STAGED_FILE_COUNT files, ~$STAGED_INSERTIONS insertions)${NC}"
+  echo -e "${GREEN}✅ Commit size OK ($STAGED_EDITS changed, $STAGED_RENAMES renamed, ~$STAGED_INSERTIONS insertions)${NC}"
   echo ""
 fi
 
