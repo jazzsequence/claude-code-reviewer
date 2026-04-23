@@ -79,7 +79,12 @@ Commit succeeds, approval flag deleted
 ### User bypass
 
 `USER_COMMIT=1 git commit -m "message"` skips the reviewer requirement for
-human-written commits. Only the human should use this — AI agents must not.
+human-written commits. This is a **human-only** escape hatch.
+
+The PreToolUse hook (`hook-handler.cjs`) actively blocks any Bash command
+containing `USER_COMMIT` — AI agents cannot use this bypass even if instructed
+to. If the reviewer isn't available in a target project, the AI should ask the
+human how to proceed rather than attempting to bypass.
 
 ---
 
@@ -140,7 +145,7 @@ Check in order:
 - **Stack-agnostic** — test commands are configuration, not code
 - **Defense in depth** — two independent enforcement layers
 - **Clear error messages** — blocked commits explain exactly what to do
-- **Human escape hatch** — `USER_COMMIT=1` for manual commits
+- **Human escape hatch** — `USER_COMMIT=1` for manual commits; hook blocks AI use of this flag
 - **Reviewer integrity** — only the reviewer writes the approval flag
 
 ---
@@ -148,7 +153,7 @@ Check in order:
 ## Files Claude Should NOT Modify
 
 - `hooks/pre-commit` — core enforcement logic; changes break the workflow
-- `helpers/hook-handler.cjs` — Layer 1 enforcement; changes must be tested carefully
+- `helpers/hook-handler.cjs` — Layer 1 enforcement; changes must be tested carefully. The `USER_COMMIT` block is intentional and must not be removed.
 
 ## Files Claude Should Freely Modify
 
