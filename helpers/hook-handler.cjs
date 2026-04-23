@@ -49,6 +49,15 @@ if (args[0] === 'pre-bash') {
 
   const cmd = (toolInput.command || '').trim();
 
+  // USER_COMMIT is a human-only escape hatch — AI agents must never use it
+  if (cmd.includes('USER_COMMIT')) {
+    console.error('[BLOCKED] USER_COMMIT is reserved for human use only — AI agents must not use it.');
+    console.error('');
+    console.error('This bypass exists so humans can commit without reviewer approval.');
+    console.error('AI-generated code must go through the reviewer agent before committing.');
+    process.exit(1);
+  }
+
   if (cmd.includes('git commit')) {
     const isUserCommit = process.env.USER_COMMIT === '1';
 

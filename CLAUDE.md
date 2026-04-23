@@ -12,22 +12,36 @@ CLAUDE.md/AGENTS.md behavioral instructions (Layer 3).
 
 ```
 claude-code-reviewer/
-├── install.sh                    # Interactive installer (run in target project)
+├── install.sh                      # Interactive installer (run in target project)
 ├── hooks/
-│   └── pre-commit                # Shell hook — Layer 2 enforcement
+│   └── pre-commit                  # Shell hook — Layer 2 enforcement
 ├── helpers/
-│   └── hook-handler.cjs          # Node.js PreToolUse handler — Layer 1
+│   └── hook-handler.cjs            # Node.js PreToolUse handler — Layer 1
 ├── templates/
-│   ├── reviewer-config.sh        # Per-project config template
-│   ├── reviewer-agent.md         # Reviewer agent prompt template
-│   ├── claude-md-block.md        # Paste into project's CLAUDE.md
-│   └── settings-addition.json   # Merge into project's .claude/settings.json
+│   ├── reviewer.md                 # Agent definition → .claude/agents/reviewer.md
+│   ├── REVIEWER_CHECKLIST.md       # Checklist template → docs/REVIEWER_CHECKLIST.md
+│   ├── reviewer-config.sh          # Per-project config template
+│   ├── reviewer-agent.md           # Spawn prompt documentation → AGENTS.md
+│   ├── claude-md-block.md          # Workflow block → CLAUDE.md
+│   └── settings-addition.json     # Merge into .claude/settings.json
 ├── docs/
-│   ├── HOW-IT-WORKS.md           # Three-layer architecture detail
-│   └── TROUBLESHOOTING.md        # Common issues and fixes
-├── CLAUDE.md                     # This file
-└── README.md                     # User-facing docs
+│   ├── HOW-IT-WORKS.md             # Three-layer architecture detail
+│   └── TROUBLESHOOTING.md          # Common issues and fixes
+├── CLAUDE.md                       # This file
+└── README.md                       # User-facing docs
 ```
+
+### Key relationship between templates
+
+- **`templates/reviewer.md`** → installed as `.claude/agents/reviewer.md` in the target project.
+  This is the reviewer agent's runtime definition. It tells the reviewer to `Read()` the checklist
+  file rather than embedding items inline. `{{PROJECT_ROOT}}` is substituted with the actual
+  absolute path by `install.sh` so the approval flag is always written to a known location.
+
+- **`templates/REVIEWER_CHECKLIST.md`** → generated as `docs/REVIEWER_CHECKLIST.md` in the target
+  project. Contains all checklist items with placeholders (`{{TEST_CMD}}`, `{{PROJECT_ROOT}}`, etc.)
+  substituted by `install.sh`. Section A items always run; Section B items are conditional with
+  explicit skip conditions. Per-item ✅/❌/⏭️ output is required.
 
 ---
 
@@ -65,17 +79,25 @@ Commit succeeds, approval flag deleted
 ### User bypass
 
 `USER_COMMIT=1 git commit -m "message"` skips the reviewer requirement for
-human-written commits. Only the human should use this — AI agents must not.
+human-written commits. This is a **human-only** escape hatch.
+
+The PreToolUse hook (`hook-handler.cjs`) actively blocks any Bash command
+containing `USER_COMMIT` — AI agents cannot use this bypass even if instructed
+to. If the reviewer isn't available in a target project, the AI should ask the
+human how to proceed rather than attempting to bypass.
 
 ---
 
 ## Common Tasks for Claude
 
-### Adapt the reviewer prompt for a specific stack
+### Add project-specific checklist items
 
-Read `templates/reviewer-agent.md`. Add project-specific checks to the
-checklist (step 3 in the "How to approve" section). Examples: WordPress nonce
-checks, Python type hints, Ruby style guide rules.
+After installation, edit `docs/REVIEWER_CHECKLIST.md` in the target project.
+Add items to the "Project-specific checks" section at the bottom of the file.
+Examples: WordPress nonce checks, Python type hints, required documentation files.
+
+To change the template for future installs, edit `templates/REVIEWER_CHECKLIST.md`
+in the same section (marked with an HTML comment).
 
 ### Change what commands the hook runs
 
@@ -123,7 +145,7 @@ Check in order:
 - **Stack-agnostic** — test commands are configuration, not code
 - **Defense in depth** — two independent enforcement layers
 - **Clear error messages** — blocked commits explain exactly what to do
-- **Human escape hatch** — `USER_COMMIT=1` for manual commits
+- **Human escape hatch** — `USER_COMMIT=1` for manual commits; hook blocks AI use of this flag
 - **Reviewer integrity** — only the reviewer writes the approval flag
 
 ---
@@ -131,7 +153,7 @@ Check in order:
 ## Files Claude Should NOT Modify
 
 - `hooks/pre-commit` — core enforcement logic; changes break the workflow
-- `helpers/hook-handler.cjs` — Layer 1 enforcement; changes must be tested carefully
+- `helpers/hook-handler.cjs` — Layer 1 enforcement; changes must be tested carefully. The `USER_COMMIT` block is intentional and must not be removed.
 
 ## Files Claude Should Freely Modify
 
