@@ -95,7 +95,7 @@ The **reviewer agent** writes the approval flag — not the main agent. This int
 USER_COMMIT=1 git commit -m "your message"
 ```
 
-This skips the reviewer requirement. Only use it for commits you write yourself, not AI-generated code.
+This skips the reviewer approval check and commit size limits. Tests, linter, build, and secrets checks still run. Only use it for commits you write yourself, not AI-generated code.
 
 ## What gets enforced
 
@@ -104,9 +104,9 @@ This skips the reviewer requirement. Only use it for commits you write yourself,
 | Reviewer approval (presence) | PreToolUse hook | `USER_COMMIT=1` |
 | Reviewer approval (expiry) | PreToolUse hook | `USER_COMMIT=1` |
 | Commit size (AI only) | Pre-commit hook | `USER_COMMIT=1` |
-| Unit tests | Pre-commit hook | `USER_COMMIT=1` |
-| Linter | Pre-commit hook | `USER_COMMIT=1` |
-| Build | Pre-commit hook | `USER_COMMIT=1` |
+| Unit tests | Pre-commit hook | Text-only staged files |
+| Linter | Pre-commit hook | Text-only staged files |
+| Build | Pre-commit hook | Text-only staged files |
 | Secrets check | Pre-commit hook | Never |
 
 ## Customizing the reviewer
