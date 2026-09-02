@@ -55,7 +55,7 @@ if (args[0] === 'pre-bash') {
     console.error('');
     console.error('This bypass exists so humans can commit without reviewer approval.');
     console.error('AI-generated code must go through the reviewer agent before committing.');
-    process.exit(1);
+    process.exit(2);  // 2 = block the tool call
   }
 
   if (cmd.includes('git commit')) {
@@ -79,7 +79,7 @@ if (args[0] === 'pre-bash') {
       console.error('');
       console.error('For your own manual commits:');
       console.error('  USER_COMMIT=1 git commit -m "message"');
-      process.exit(1);
+      process.exit(2);  // 2 = block the tool call
     }
 
     const raw = fs.readFileSync(approvalFile, 'utf8').trim();
@@ -88,7 +88,7 @@ if (args[0] === 'pre-bash') {
     if (isNaN(approvalTime) || approvalTime <= 0) {
       console.error('[BLOCKED] Approval file is corrupted (invalid timestamp)');
       console.error('  Delete reviewer-approved and get a fresh approval.');
-      process.exit(1);
+      process.exit(2);  // 2 = block the tool call
     }
 
     const currentTime = Math.floor(Date.now() / 1000);
@@ -98,7 +98,7 @@ if (args[0] === 'pre-bash') {
       console.error(`[BLOCKED] Reviewer approval expired (${timeDiff}s old, max ${CONFIG.approvalTimeout}s)`);
       console.error('');
       console.error('Spawn the reviewer agent again and get a fresh approval.');
-      process.exit(1);
+      process.exit(2);  // 2 = block the tool call
     }
 
     console.log(`[OK] Reviewer approved (${timeDiff}s ago)`);
