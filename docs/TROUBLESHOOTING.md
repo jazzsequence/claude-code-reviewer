@@ -72,7 +72,26 @@ git commit -m "message"  # ← this works too, but only for the session
 
 ## Hook runs but Claude Code doesn't see the error
 
-PreToolUse hooks communicate through exit codes and stderr. If `hook-handler.cjs` exits 1 but Claude Code proceeds anyway, check the hook registration in `.claude/settings.json` — specifically that `"matcher": "Bash"` is correct and the `command` path points to the right file.
+PreToolUse hooks communicate through exit codes and stderr, and **only exit code 2
+blocks a tool call**. Any other non-zero code is treated as a non-blocking error: Claude
+Code shows a `hook error` notice and *proceeds with the tool call anyway*. From the
+[hooks guide](https://code.claude.com/docs/en/hooks-guide):
+
+> **Exit 2**: Claude Code blocks the action. Write a reason to stderr.
+
+So a handler that exits 1 on its block paths will print `[BLOCKED]` and let the commit
+through. `hook-handler.cjs` uses `exit 2` for all four block paths (USER_COMMIT, missing
+approval, corrupt timestamp, expired approval) and reserves `exit 1` for internal errors
+such as an unknown hook command.
+
+If a block still doesn't take effect, check two things beyond the exit code:
+
+1. **The registration** in `.claude/settings.json` — `"matcher": "Bash"` is correct and
+   the `command` path points at the right file.
+2. **The command isn't swallowing the exit code.** A wrapper like
+   `test -f handler.cjs && node handler.cjs pre-bash || true` always exits 0, so the
+   hook can never block. Drop the `|| true`, or use
+   `test -f handler.cjs && node handler.cjs pre-bash` alone.
 
 ## Running the hook handler manually for debugging
 
