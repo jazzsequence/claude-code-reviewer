@@ -71,7 +71,19 @@ fi
 echo ""
 
 # ── Step 2: Commit size (AI commits only) ────────────────────────────────────
-if [ "$USER_COMMIT" != "1" ]; then
+if [ -f "$REPO_ROOT/.git/MERGE_HEAD" ]; then
+  # Merge commits are exempt. The caps exist to keep AUTHORED commits atomic and
+  # reviewable; a merge is integration, and its staged set is every file the incoming
+  # branch touched — so any non-trivial merge exceeds them. There is no legitimate
+  # outcome from blocking one: the work cannot be split, and an agent must not reach
+  # USER_COMMIT=1 to escape it. The merged content is not new either; it was reviewed
+  # on the branch it came from. What IS new is the conflict resolution, and that is
+  # what a reviewer should be reading.
+  echo "2️⃣  Checking commit size..."
+  echo -e "${YELLOW}⏭️  Size checks skipped (merge commit)${NC}"
+  echo "   Review the conflict resolutions, not the file count."
+  echo ""
+elif [ "$USER_COMMIT" != "1" ]; then
   echo "2️⃣  Checking commit size..."
 
   # Renames are lower-risk than edits — track them separately
