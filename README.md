@@ -97,13 +97,17 @@ USER_COMMIT=1 git commit -m "your message"
 
 This skips the reviewer approval check and commit size limits. Tests, linter, build, and secrets checks still run. Only use it for commits you write yourself, not AI-generated code.
 
+Merge commits are also exempt from the size limits, since a merge stages every file the
+incoming branch touched and cannot be split. Review a merge with
+`git diff --cached $(cat .git/MERGE_HEAD)` rather than the raw staged count.
+
 ## What gets enforced
 
 | Check | Layer | Bypass |
 |-------|-------|--------|
 | Reviewer approval (presence) | PreToolUse hook | `USER_COMMIT=1` |
 | Reviewer approval (expiry) | PreToolUse hook | `USER_COMMIT=1` |
-| Commit size (AI only) | Pre-commit hook | `USER_COMMIT=1` |
+| Commit size (AI only) | Pre-commit hook | `USER_COMMIT=1`, or a merge commit |
 | Unit tests | Pre-commit hook | Text-only staged files |
 | Linter | Pre-commit hook | Text-only staged files |
 | Build | Pre-commit hook | Text-only staged files |
