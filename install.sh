@@ -254,6 +254,7 @@ else
   TMP_DIR=$(mktemp -d)
   BASE_URL="${REVIEWER_BASE_URL:-https://raw.githubusercontent.com/jazzsequence/claude-code-reviewer/main}"
   curl -sSL "$BASE_URL/hooks/pre-commit"                -o "$TMP_DIR/pre-commit"
+  curl -sSL "$BASE_URL/hooks/lib/approval.sh"           -o "$TMP_DIR/approval.sh"
   curl -sSL "$BASE_URL/helpers/hook-handler.cjs"        -o "$TMP_DIR/hook-handler.cjs"
   curl -sSL "$BASE_URL/templates/reviewer-config.sh"    -o "$TMP_DIR/reviewer-config.sh"
   curl -sSL "$BASE_URL/templates/claude-md-block.md"    -o "$TMP_DIR/claude-md-block.md"
@@ -275,6 +276,24 @@ chmod +x "$GEN_DIR/pre-commit"
 
 mkdir -p "$REPO_ROOT/.githooks"
 install_managed "$GEN_DIR/pre-commit" "$REPO_ROOT/.githooks/pre-commit" "pre-commit hook" true
+
+# ── shared approval validator ─────────────────────────────────────────────────
+# The hook sources this at runtime rather than inlining it, so that the hook and the
+# PreToolUse handler run the same validation code. A missing lib blocks every commit,
+# so install it before syncing the hook into .git/hooks.
+if [ -f "$HOOKS_SRC/lib/approval.sh" ]; then
+  cp "$HOOKS_SRC/lib/approval.sh" "$GEN_DIR/approval.sh"
+elif [ -f "$HOOKS_SRC/approval.sh" ]; then
+  cp "$HOOKS_SRC/approval.sh" "$GEN_DIR/approval.sh"
+else
+  echo -e "  ${RED}❌ approval.sh not found — cannot install${NC}"
+  exit 1
+fi
+chmod +x "$GEN_DIR/approval.sh"
+
+mkdir -p "$REPO_ROOT/.githooks/lib"
+install_managed "$GEN_DIR/approval.sh" "$REPO_ROOT/.githooks/lib/approval.sh" \
+  "approval validator" true
 
 # Always sync .git/hooks from .githooks (not manifest-tracked — derived file)
 cp "$REPO_ROOT/.githooks/pre-commit" "$REPO_ROOT/.git/hooks/pre-commit"

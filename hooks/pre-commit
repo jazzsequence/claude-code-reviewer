@@ -18,6 +18,7 @@ REVIEWER_TEST_CMD="npm test -- --run"
 REVIEWER_LINT_CMD="npm run lint"
 REVIEWER_BUILD_CMD="npm run build"
 REVIEWER_E2E_CMD=""                        # empty = skip E2E
+REVIEWER_E2E_ON_USER_COMMIT=1              # run E2E under USER_COMMIT=1? 0 = skip
 REVIEWER_MAX_FILES=5                       # max changed files (add/modify/delete; AI commits)
 REVIEWER_MAX_RENAMES=20                    # max renamed files (AI commits)
 REVIEWER_MAX_INSERTIONS=500                # max inserted lines (AI commits)
@@ -47,24 +48,25 @@ echo "1️⃣  Checking reviewer agent approval..."
 if [ "$USER_COMMIT" = "1" ]; then
   echo -e "${YELLOW}⚠️  User commit bypass enabled${NC}"
   echo "   Skipping reviewer agent check (USER_COMMIT=1)"
-elif [ -f "$APPROVAL_FILE" ]; then
-  APPROVAL_TIME=$(cat "$APPROVAL_FILE")
-  CURRENT_TIME=$(date +%s)
-  TIME_DIFF=$((CURRENT_TIME - APPROVAL_TIME))
+else
+  # Validation lives in lib/approval.sh so this hook and the PreToolUse handler run the
+  # SAME code. The handler is gitignored in consuming projects and can never be reviewed;
+  # while each layer carried its own copy, in different languages, they drifted — leading
+  # whitespace, interior whitespace, parseInt leniency, UTF-8 BOM. Every drift was a case
+  # where one layer accepted a flag the other rejected.
+  APPROVAL_LIB="$(dirname "${BASH_SOURCE[0]}")/lib/approval.sh"
+  [ -f "$APPROVAL_LIB" ] || APPROVAL_LIB="$REPO_ROOT/.githooks/lib/approval.sh"
 
-  if [ "$TIME_DIFF" -lt "$REVIEWER_APPROVAL_TIMEOUT" ]; then
-    echo -e "${GREEN}✅ Reviewer agent approved (${TIME_DIFF}s ago)${NC}"
-    rm "$APPROVAL_FILE"
-  else
-    echo -e "${RED}❌ BLOCKED: Reviewer approval expired (${TIME_DIFF}s old, max ${REVIEWER_APPROVAL_TIMEOUT}s)${NC}"
-    echo "   Spawn reviewer agent again and get a fresh approval."
+  if [ ! -f "$APPROVAL_LIB" ]; then
+    echo -e "${RED}❌ BLOCKED: lib/approval.sh is missing${NC}"
+    echo "   Re-run install.sh to repair the hook installation."
     exit 1
   fi
-else
-  echo -e "${RED}❌ BLOCKED: No reviewer agent approval found${NC}"
-  echo "   For AI-generated changes: Spawn the reviewer agent and get APPROVE"
-  echo "   For your own changes:     USER_COMMIT=1 git commit -m \"message\""
-  exit 1
+
+  # shellcheck source=lib/approval.sh
+  source "$APPROVAL_LIB"
+
+  reviewer_validate_approval "$APPROVAL_FILE" "$REVIEWER_APPROVAL_TIMEOUT" || exit 1
 fi
 echo ""
 
@@ -81,10 +83,18 @@ if [ "$USER_COMMIT" != "1" ]; then
     | grep -Ev "$REVIEWER_EXCLUDED_FILES" \
     | wc -l | tr -d ' ')
 
-  STAGED_INSERTIONS=$(git diff --cached --stat -- \
-    $(git diff --cached --name-only | grep -Ev "$REVIEWER_EXCLUDED_FILES" \
-      | sed 's/^/:/') 2>/dev/null \
-    | tail -1 | grep -oE '[0-9]+ insertion' | grep -oE '[0-9]+' || echo 0)
+  # numstat, NOT a pathspec include-list. Building pathspecs from the non-excluded
+  # files breaks when EVERY staged file is excluded: the list comes out empty,
+  # `git diff --cached --stat --` falls back to all files, and the lock file's
+  # insertions are counted. That hard-blocks lock-file-only commits — every Dependabot
+  # merge — with no route past it for an agent that must not use USER_COMMIT=1.
+  # numstat filters per row, so an all-excluded stage yields 0.
+  # `-` is git's binary-file marker and must not be summed.
+  # `--no-renames` because a detected rename renders as `old => new`, which will not
+  # match an anchored pattern like ^package-lock\.json$.
+  STAGED_INSERTIONS=$(git diff --cached --numstat --no-renames \
+    | awk -F'\t' -v ex="$REVIEWER_EXCLUDED_FILES" \
+        '$3 !~ ex { s += ($1 == "-" ? 0 : $1) } END { print s+0 }')
 
   if [ "$STAGED_EDITS" -gt "$REVIEWER_MAX_FILES" ]; then
     echo -e "${RED}❌ BLOCKED: Commit too large — $STAGED_EDITS files changed (max $REVIEWER_MAX_FILES for AI commits)${NC}"
@@ -157,14 +167,23 @@ else
     echo -e "${GREEN}✅ Build successful${NC}"
   fi
 
-  # E2E tests (opt-in)
+  # E2E tests (opt-in). REVIEWER_E2E_ON_USER_COMMIT=0 skips them for the human's own
+  # commits — the right trade when CI already runs E2E against a real environment on
+  # every PR, since it is the slowest check in the gate. It does NOT apply to agent
+  # commits: those are what the gate exists to catch, and an agent must not reach the
+  # bypass. `= "0"`, not `!= "1"`: an unset or misspelled value must fail toward
+  # running the check, not toward skipping it.
   if [ -n "$REVIEWER_E2E_CMD" ]; then
-    echo "   Running E2E tests..."
-    if ! eval "$REVIEWER_E2E_CMD"; then
-      echo -e "${RED}❌ BLOCKED: E2E tests failed${NC}"
-      exit 1
+    if [ "$USER_COMMIT" = "1" ] && [ "$REVIEWER_E2E_ON_USER_COMMIT" = "0" ]; then
+      echo -e "${YELLOW}⏭️  E2E skipped (USER_COMMIT=1, REVIEWER_E2E_ON_USER_COMMIT=0)${NC}"
+    else
+      echo "   Running E2E tests..."
+      if ! eval "$REVIEWER_E2E_CMD"; then
+        echo -e "${RED}❌ BLOCKED: E2E tests failed${NC}"
+        exit 1
+      fi
+      echo -e "${GREEN}✅ E2E tests passed${NC}"
     fi
-    echo -e "${GREEN}✅ E2E tests passed${NC}"
   fi
 
   echo ""
@@ -189,7 +208,7 @@ if [ "$USER_COMMIT" != "1" ]; then
   echo -e "${YELLOW}⚠️  MANDATORY: Reviewer agent must approve before every commit.${NC}"
   echo "   1. Spawn reviewer agent with Claude Code's Agent tool"
   echo "   2. Get APPROVE decision"
-  echo "   3. Reviewer writes the approval flag"
+  echo "   3. Reviewer writes the approval flag (timestamp + index fingerprint)"
   echo "   4. Commit within ${REVIEWER_APPROVAL_TIMEOUT}s"
   echo ""
 fi

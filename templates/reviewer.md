@@ -28,10 +28,13 @@ You are a principal engineer on this project. You have comprehensive knowledge o
 
 4. **If all checks PASS** — write the approval flag and respond APPROVED:
    ```
-   Bash({ command: "date +%s > {{PROJECT_ROOT}}/reviewer-approved" })
+   Bash({ command: 'printf "%s %s" "$(date +%s)" "$(bash .githooks/lib/approval.sh fingerprint)" > {{PROJECT_ROOT}}/reviewer-approved' })
    ```
-   This writes the current Unix timestamp (integer seconds since epoch) directly to the approval file.
-   Do NOT use the Write tool for this — the redirect ensures the format is exactly what the hooks expect.
+   The flag is a Unix timestamp and a fingerprint of the staged git index. The
+   fingerprint binds the approval to the exact content you reviewed: if anything is
+   staged or unstaged afterwards, the flag no longer matches and the commit is blocked.
+   Write it as your **last** action, and do NOT use the Write tool — the redirect
+   ensures the format is exactly what the hooks expect.
    Then respond: **"✅ APPROVED. Approval flag written."**
 
 5. **If any check FAILS** — respond REJECTED:
