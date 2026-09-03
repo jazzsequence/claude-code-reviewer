@@ -24,7 +24,12 @@ The reviewer agent uses the `Write` tool to create the approval flag. Without `W
 **File:** `.git/hooks/pre-commit` (installed from `.githooks/pre-commit`)
 
 This hook re-validates the approval file (defense in depth), then:
-- Enforces commit size limits (AI commits only)
+- Enforces commit size limits (AI commits only), except on merge commits — a merge
+  stages every file the incoming branch touched and cannot be split, so the caps have no
+  legitimate outcome there. The merged content was already reviewed on its source branch;
+  what is new is the conflict resolution. Audit a merge with
+  `git diff --cached $(cat .git/MERGE_HEAD)`, which shows only what the merge genuinely
+  adds — a merge commit is the one place authored work could hide from the caps
 - Runs unit tests, linter, build, and optionally E2E tests
 - Checks for secrets in staged files
 - Deletes the approval flag (single-use)
