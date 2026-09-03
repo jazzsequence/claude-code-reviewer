@@ -14,6 +14,12 @@ REVIEWER_BUILD_CMD="npm run build"      # build validation
 REVIEWER_E2E_CMD=""                     # E2E tests (empty = skip)
                                         # example: "npm run test:e2e"
 
+# Run E2E under USER_COMMIT=1? Set 0 to skip them for your own commits — the right
+# trade when CI already runs E2E against a real environment on every PR, since it is
+# usually the slowest check in the gate. Agent commits always run it: they cannot use
+# USER_COMMIT=1, and they are what the gate exists to catch.
+REVIEWER_E2E_ON_USER_COMMIT=1
+
 # ── Commit size limits (AI commits only) ──────────────────────────────────────
 REVIEWER_MAX_FILES=5          # max changed files (add/modify/delete, excluding lock files)
 REVIEWER_MAX_RENAMES=20       # max renamed files (renames are lower-risk than edits)

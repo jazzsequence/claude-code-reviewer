@@ -8,7 +8,7 @@
 
 **Registered via:** `.claude/settings.json` → `hooks.PreToolUse`
 
-When Claude Code calls `Bash({ command: "git commit ..." })`, the hook handler fires first. It reads the approval file, checks the timestamp, and either:
+When Claude Code calls `Bash({ command: "git commit ..." })`, the hook handler fires first. It delegates to `.githooks/lib/approval.sh` — the same script the git hook sources, so the two layers cannot disagree — which checks the timestamp and that the staged index still matches the fingerprint the approval was written against. Then either:
 - Exits 0 → commit proceeds
 - Exits 1 → commit is blocked before git even starts
 

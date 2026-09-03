@@ -36,7 +36,17 @@ To increase the timeout, set `REVIEWER_APPROVAL_TIMEOUT` in `.reviewer-config.sh
 
 ## "Approval file is corrupted"
 
-The `reviewer-approved` file exists but contains an invalid timestamp. Delete it:
+The `reviewer-approved` file exists but is not a valid flag. The hook distinguishes three
+cases, and the remedies differ:
+
+- **"has no tree fingerprint"** — a pre-binding (v1) flag. Update claude-code-reviewer,
+  then re-run the reviewer agent.
+- **"does not match the staged changes"** — the approval was valid, but something was
+  staged or unstaged after the review. Re-run the reviewer so the approval covers what
+  you are actually committing.
+- **"corrupted (invalid timestamp)"** — the file contents are not a plain integer.
+
+In the last case, delete it:
 ```bash
 rm reviewer-approved
 ```

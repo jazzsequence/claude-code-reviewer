@@ -10,7 +10,7 @@ Every time Claude Code tries to run `git commit`, a three-layer enforcement chai
 2. **Pre-commit shell hook** — re-validates approval, enforces commit size limits, checks for secrets, runs your test suite
 3. **CLAUDE.md instructions** — tells the AI to always spawn a reviewer and never self-approve
 
-The reviewer agent runs your tests, checks code quality, then writes a timestamped approval file. The hooks validate that file. The approval expires after 5 minutes.
+The reviewer agent runs your tests, checks code quality, then writes an approval file carrying a timestamp and a fingerprint of the staged git index. The hooks validate both: the approval expires after `REVIEWER_APPROVAL_TIMEOUT`, and it is invalidated immediately if anything is staged or unstaged afterwards — so an approval issued for one diff cannot authorise a different one.
 
 ## Requirements
 
@@ -81,9 +81,9 @@ Leave any command empty (`""`) to skip that check.
 AI makes changes
   → AI spawns reviewer agent
   → Reviewer runs tests, checks quality
-  → APPROVE: reviewer writes `reviewer-approved` timestamp
+  → APPROVE: reviewer writes `reviewer-approved` (timestamp + index fingerprint)
   → AI runs git commit
-  → Hooks validate the timestamp
+  → Hooks validate the timestamp AND that the staged content still matches
   → Commit allowed (flag deleted)
 ```
 

@@ -139,15 +139,21 @@ N. Error responses are consistent with existing API
 
 All Section A items must pass. All applicable Section B items must pass.
 
-1. Run: `Bash({ command: "date +%s" })` — note the timestamp
-2. Write the approval flag:
+1. Build the flag value — a timestamp AND a fingerprint of the staged index:
+   ```
+   Bash({ command: 'printf "%s %s" "$(date +%s)" "$(bash .githooks/lib/approval.sh fingerprint)"' })
+   ```
+2. Write it, as your **last** action:
    ```
    Write({
      file_path: "{{PROJECT_ROOT}}/reviewer-approved",
-     content: "<timestamp>"
+     content: "<timestamp> <fingerprint>"
    })
    ```
-3. Respond: `✅ APPROVED — approval flag written. Main agent may now stage and commit.`
+   The fingerprint binds the approval to the exact staged content, so staging or
+   unstaging anything after you write it invalidates the flag. A bare timestamp is
+   rejected as the pre-binding format.
+3. Respond: `✅ APPROVED — approval flag written. Main agent may now commit without restaging.`
 
 **Only the reviewer agent writes `{{PROJECT_ROOT}}/reviewer-approved`. The main agent must not write it.**
 The integrity of the two-factor system depends on this separation.

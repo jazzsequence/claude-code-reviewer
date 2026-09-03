@@ -15,6 +15,7 @@
 'use strict';
 
 const fs = require('fs');
+const { spawnSync } = require('child_process');
 const path = require('path');
 
 // ── Read project config ───────────────────────────────────────────────────────
@@ -68,39 +69,44 @@ if (args[0] === 'pre-bash') {
 
     const approvalFile = path.join(process.cwd(), CONFIG.approvalFile);
 
-    if (!fs.existsSync(approvalFile)) {
-      console.error('[BLOCKED] No reviewer approval found');
-      console.error('');
-      console.error('Before committing AI-generated code:');
-      console.error('  1. Spawn reviewer agent with Claude Code Agent tool');
-      console.error('  2. Get APPROVE decision from the agent');
-      console.error('  3. Reviewer writes the approval flag');
-      console.error(`  4. Commit within ${CONFIG.approvalTimeout}s`);
-      console.error('');
-      console.error('For your own manual commits:');
-      console.error('  USER_COMMIT=1 git commit -m "message"');
-      process.exit(2);  // 2 = block the tool call
+    // Delegate to lib/approval.sh — the SAME code the git hook runs. This file is
+    // gitignored in consuming projects, so it can never be reviewed or shipped; while
+    // it reimplemented the checks in JS the two drifted repeatedly. One implementation
+    // makes parity structural rather than maintained.
+    //
+    // `peek`, not `check`: peek does not consume the flag. This runs BEFORE git commit,
+    // so consuming here would make the commit that follows fail with "no approval found".
+    const libPath = path.join(process.cwd(), '.githooks', 'lib', 'approval.sh');
+
+    if (!fs.existsSync(libPath)) {
+      console.error('[BLOCKED] .githooks/lib/approval.sh is missing');
+      console.error('  Re-run install.sh to repair the hook installation.');
+      process.exit(2);
     }
 
-    const raw = fs.readFileSync(approvalFile, 'utf8').trim();
-    const approvalTime = parseInt(raw, 10);
+    const result = spawnSync(
+      'bash',
+      [libPath, 'peek', approvalFile, String(CONFIG.approvalTimeout)],
+      { encoding: 'utf8' }
+    );
 
-    if (isNaN(approvalTime) || approvalTime <= 0) {
-      console.error('[BLOCKED] Approval file is corrupted (invalid timestamp)');
-      console.error('  Delete reviewer-approved and get a fresh approval.');
-      process.exit(2);  // 2 = block the tool call
+    // An advisory layer reporting "looks fine" when it could not actually check is
+    // worse than one reporting nothing — the misleading pass is the harm. The git hook
+    // re-checks at commit time regardless.
+    if (result.error || typeof result.status !== 'number') {
+      console.error('[BLOCKED] Could not verify reviewer approval');
+      console.error('  ' + (result.error ? result.error.message : 'no exit status'));
+      console.error('  The git hook will re-check at commit time.');
+      process.exit(2);
     }
 
-    const currentTime = Math.floor(Date.now() / 1000);
-    const timeDiff = currentTime - approvalTime;
-
-    if (timeDiff >= CONFIG.approvalTimeout) {
-      console.error(`[BLOCKED] Reviewer approval expired (${timeDiff}s old, max ${CONFIG.approvalTimeout}s)`);
-      console.error('');
-      console.error('Spawn the reviewer agent again and get a fresh approval.');
-      process.exit(2);  // 2 = block the tool call
+    if (result.status !== 0) {
+      process.stderr.write(result.stdout || '');
+      process.stderr.write(result.stderr || '');
+      process.exit(2);
     }
 
+    process.stdout.write(result.stdout || '');
     console.log(`[OK] Reviewer approved (${timeDiff}s ago)`);
     process.exit(0);
   }
