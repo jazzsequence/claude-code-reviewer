@@ -55,7 +55,7 @@ AI spawns reviewer agent (Agent tool, subagent_type=reviewer)
 Reviewer runs tests/lint/checks
      ↓  REJECT → AI fixes → loop
      ↓  APPROVE
-Reviewer writes `reviewer-approved` (timestamp) using Write tool
+Reviewer writes `reviewer-approved` (timestamp + index fingerprint) using the Write tool
      ↓
 AI calls `git commit`
      ↓

@@ -14,8 +14,8 @@ When Claude Code calls `Bash({ command: "git commit ..." })`, the hook handler f
 
 This layer gives the clearest error messages and fires earliest.
 
-**Why `Write(*)` in permissions:**
-The reviewer agent uses the `Write` tool to create the approval flag. Without `Write(*)` in `.claude/settings.json`, Claude Code will prompt the human for permission on every write — breaking the automated flow. The `*` is required because more specific paths like `Write(reviewer-approved)` don't work with Claude Code's glob matching.
+**Why `Write(*)` and the fingerprint command in permissions:**
+The reviewer agent uses the `Write` tool to create the approval flag, after reading the `date` and `bash .githooks/lib/approval.sh fingerprint` output. Without `Write(*)` and `Bash(bash .githooks/lib/approval.sh fingerprint)` in `.claude/settings.json`, Claude Code will prompt the human for permission on each of them — breaking the automated flow. A shell redirect such as `printf ... > reviewer-approved` is deliberately not used: it is not on the allow list and prompts every time. The `*` is required because more specific paths like `Write(reviewer-approved)` don't work with Claude Code's glob matching.
 
 ## Layer 2: Pre-commit Shell Hook (`pre-commit`)
 

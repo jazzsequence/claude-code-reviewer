@@ -1,6 +1,6 @@
 {
   "_comment": "Merge this into your project's .claude/settings.json",
-  "_comment2": "The Write(*) permission is required for the reviewer to write the approval flag without a manual prompt",
+  "_comment2": "Write(*), date and the fingerprint command are what the reviewer needs to write the approval flag without a manual prompt",
 
   "permissions": {
     "allow": [
@@ -8,6 +8,7 @@
       "Bash(git add*)",
       "Bash(date*)",
       "Write(*)",
+      "Bash(bash .githooks/lib/approval.sh fingerprint)",
       "Agent(subagent_type=reviewer)"
     ]
   },
