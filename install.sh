@@ -394,6 +394,7 @@ _SETTINGS_BLOCK='{
       "Bash(git add*)",
       "Bash(date*)",
       "Write(*)",
+      "Bash(bash .githooks/lib/approval.sh fingerprint)",
       "Agent(subagent_type=reviewer)"
     ]
   },

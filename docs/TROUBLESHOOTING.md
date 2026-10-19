@@ -26,7 +26,21 @@ Without it, the reviewer agent will be prompted for permission every time it tri
 
 The reviewer agent is trying to write the approval flag but Claude Code is asking for permission.
 
-Fix: Add `"Write(*)"` to the `permissions.allow` array in `.claude/settings.json`. Restart Claude Code to reload settings.
+Fix: Add `"Write(*)"` and `"Bash(bash .githooks/lib/approval.sh fingerprint)"` to the `permissions.allow` array in `.claude/settings.json` (`date*` is already there). Restart Claude Code to reload settings.
+
+The reviewer must write the flag with the Write tool, as three separate steps: `date +%s`, the fingerprint script, then `Write` of `<timestamp> <fingerprint>`. A `printf ... > reviewer-approved` redirect is not allow-listed and prompts every time, so make sure your `.claude/agents/reviewer.md` and `docs/REVIEWER_CHECKLIST.md` use the Write form.
+
+## Reviewer approves but the flag is never written ("Self-Approval", "Auto-Mode Bypass")
+
+Symptom: every checklist item passes, but the reviewer reports that writing `reviewer-approved` (or running the fingerprint script) was denied, citing a label such as `Self-Approval`, `Auto-Mode Bypass`, `Security Weaken` or `Self-Modification`, even though the commands are on `permissions.allow`.
+
+Cause: these denials come from Claude Code's auto-mode classifier, not from the permission rules. It treats an agent writing the approval for the main agent's own commit as self-approval, and ordinary `permissions.allow` rules do not override it.
+
+Fix: run the session outside auto mode (for example the default permission mode). The Write flow above then goes through with no prompts. This is the only fix verified so far: an `autoMode.allow` entry in `~/.claude/settings.json` (user-level only; the classifier ignores project settings for this) did not make the write succeed in testing with auto mode on.
+
+Do not retry the write through a different path (a redirect, a different tool, another command) after a denial: the classifier counts that as an attempt to bypass it and the denials get worse.
+
+Two related symptoms: if `claude auto-mode critique` reports "No custom auto mode rules found" after you added rules, check that `~/.claude/settings.json` is valid JSON (a missing comma silently drops the whole block); and if permission prompts flash and vanish, a background subagent is raising requests that replace yours, so avoid running commands that need a prompt while a subagent is running.
 
 ## "Approval expired (Xs old)"
 
